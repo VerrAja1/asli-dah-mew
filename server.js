@@ -28,7 +28,6 @@ app.post('/webhook', (req, res) => {
   console.log('HEADERS:', JSON.stringify(req.headers));
   console.log('BODY:', JSON.stringify(req.body));
 
-  // Cek semua kemungkinan header/body token SociaBuzz
   const incomingToken =
     req.headers['x-sociabuzz-webhook-token'] ||
     req.headers['x-webhook-token'] ||
@@ -37,7 +36,6 @@ app.post('/webhook', (req, res) => {
     req.body?.token ||
     req.body?.webhook_token;
 
-  // Log aja kalau beda, biar gak langsung gagal 401 pas tes
   if (incomingToken && incomingToken !== WEBHOOK_TOKEN) {
     console.log('Peringatan token beda:', incomingToken);
   }
@@ -72,7 +70,6 @@ app.post('/webhook', (req, res) => {
     prioritas
   });
 
-  // Urutkan berdasarkan prioritas (1 = Skip All paling atas)
   antrian.sort((a, b) => a.prioritas - b.prioritas || a.id - b.id);
 
   io.emit('update_antrian', antrian);
@@ -81,6 +78,32 @@ app.post('/webhook', (req, res) => {
 
 io.on('connection', (socket) => {
   socket.emit('update_antrian', antrian);
+
+  socket.on('tambah_manual', ({ nama, nominal, pesan }) => {
+    const nom = Number(nominal) || 5000;
+    let tier = 'Reguler';
+    let prioritas = 3;
+
+    if (nom >= 15000) {
+      tier = 'Skip All';
+      prioritas = 1;
+    } else if (nom >= 10000) {
+      tier = 'VIP';
+      prioritas = 2;
+    }
+
+    antrian.push({
+      id: Date.now(),
+      nama: nama || 'Manual',
+      nominal: nom,
+      pesan: pesan || '-',
+      tier,
+      prioritas
+    });
+
+    antrian.sort((a, b) => a.prioritas - b.prioritas || a.id - b.id);
+    io.emit('update_antrian', antrian);
+  });
 
   socket.on('hapus_antrian', (id) => {
     antrian = antrian.filter((item) => item.id !== id);
