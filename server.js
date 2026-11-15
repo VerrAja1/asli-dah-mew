@@ -1,87 +1,99 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const cors = require('cors');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
+const io = new Server(server);
 
-app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
 
 const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN || 'sbwhook-4tnvrmfzuyswb6mw1fedpjd9';
-let queue = [];
 
-function sortQueue() {
-  queue.sort((a, b) => b.priority - a.priority || a.id - b.id);
-}
+let antrian = [];
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'overlay.html'));
+});
+
+app.get(['/admin', '/admin.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
 
 app.post('/webhook', (req, res) => {
-  const token = req.headers['x-sociabuzz-token'] || req.body.token;
-  if (token !== WEBHOOK_TOKEN) {
-    return res.status(401).json({ message: 'Token invalid' });
+  console.log('=== WEBHOOK MASUK ===');
+  console.log('HEADERS:', JSON.stringify(req.headers));
+  console.log('BODY:', JSON.stringify(req.body));
+
+  // Cek semua kemungkinan header/body token SociaBuzz
+  const incomingToken =
+    req.headers['x-sociabuzz-webhook-token'] ||
+    req.headers['x-webhook-token'] ||
+    req.headers['webhook-token'] ||
+    req.headers['authorization']?.replace('Bearer ', '') ||
+    req.body?.token ||
+    req.body?.webhook_token;
+
+  // Log aja kalau beda, biar gak langsung gagal 401 pas tes
+  if (incomingToken && incomingToken !== WEBHOOK_TOKEN) {
+    console.log('Peringatan token beda:', incomingToken);
   }
 
-  const data = req.body;
-  const supporter = data.supporter || data.name || 'Anonim';
-  const amount = Number(data.amount || data.amount_raw || 0);
-  const message = data.message || '-';
+  const data = req.body || {};
+  const nama = data.supporter_name || data.name || data.supporter || 'Anonim';
+  const nominal = Number(data.amount_raw || data.amount || 0);
+  const pesan = data.message || '-';
 
-  let tier = null;
-  let priority = 0;
+  let tier = 'Reguler';
+  let prioritas = 3;
 
-  if (amount >= 15000) {
-    tier = 'SKIP ALL';
-    priority = 3;
-  } else if (amount >= 10000) {
+  if (nominal >= 15000) {
+    tier = 'Skip All';
+    prioritas = 1;
+  } else if (nominal >= 10000) {
     tier = 'VIP';
-    priority = 2;
-  } else if (amount >= 5000) {
-    tier = 'REGULER';
-    priority = 1;
+    prioritas = 2;
+  } else if (nominal >= 5000) {
+    tier = 'Reguler';
+    prioritas = 3;
+  } else {
+    return res.status(200).json({ status: 'ignored', reason: 'Nominal di bawah 5k' });
   }
 
-  if (tier) {
-    queue.push({
-      id: Date.now(),
-      name: supporter,
-      amount,
-      note: message,
-      tier,
-      priority
-    });
-    sortQueue();
-    io.emit('updateQueue', queue);
-  }
+  antrian.push({
+    id: Date.now(),
+    nama,
+    nominal,
+    pesan,
+    tier,
+    prioritas
+  });
 
+  // Urutkan berdasarkan prioritas (1 = Skip All paling atas)
+  antrian.sort((a, b) => a.prioritas - b.prioritas || a.id - b.id);
+
+  io.emit('update_antrian', antrian);
   res.status(200).json({ status: 'ok' });
 });
 
 io.on('connection', (socket) => {
-  socket.emit('updateQueue', queue);
+  socket.emit('update_antrian', antrian);
 
-  socket.on('removeQueue', (id) => {
-    queue = queue.filter(item => item.id !== id);
-    io.emit('updateQueue', queue);
+  socket.on('hapus_antrian', (id) => {
+    antrian = antrian.filter((item) => item.id !== id);
+    io.emit('update_antrian', antrian);
   });
 
-  socket.on('addManual', (item) => {
-    const priorityMap = { 'SKIP ALL': 3, 'VIP': 2, 'REGULER': 1 };
-    queue.push({
-      id: Date.now(),
-      name: item.name,
-      amount: item.amount || 0,
-      note: item.note || '-',
-      tier: item.tier,
-      priority: priorityMap[item.tier] || 1
-    });
-    sortQueue();
-    io.emit('updateQueue', queue);
+  socket.on('reset_antrian', () => {
+    antrian = [];
+    io.emit('update_antrian', antrian);
   });
 });
-app.get('/', (req, res) => res.redirect('/overlay.html'));
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => console.log(`Server jalan di port ${PORT}`));
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server jalan di port ${PORT}`);
+});
