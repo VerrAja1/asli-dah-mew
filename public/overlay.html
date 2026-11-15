@@ -1,61 +1,103 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
-<style>
-  body { margin: 0; padding: 15px; font-family: 'Segoe UI', sans-serif; background: transparent; color: white; }
-  .box {
-    background: rgba(15, 15, 20, 0.88);
-    border-left: 5px solid #ff9800;
-    border-radius: 8px;
-    padding: 12px 16px;
-    width: 330px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.6);
-  }
-  h3 { margin: 0 0 10px 0; font-size: 15px; color: #ff9800; text-transform: uppercase; letter-spacing: 1px; }
-  ul { list-style: none; padding: 0; margin: 0; }
-  li {
-    padding: 7px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    font-size: 13px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  li:first-child { color: #4caf50; font-weight: bold; }
-  li:last-child { border-bottom: none; }
-  .note { font-size: 11px; color: #bbb; display: block; margin-top: 2px; }
-  .badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 5px; color: #fff; }
-  .SKIP { background: #e53935; box-shadow: 0 0 8px rgba(229,57,53,0.7); }
-  .VIP { background: #f59e0b; color: #000; }
-  .REGULER { background: #3b82f6; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Overlay Antrian By One</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background: transparent; color: #fff; padding: 16px; overflow: hidden; }
+    .box {
+      width: 380px;
+      background: rgba(15, 17, 26, 0.88);
+      border: 2px solid #ff9800;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    }
+    .header {
+      text-align: center;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: #ffb74d;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+    .list { display: flex; flex-direction: column; gap: 8px; }
+    .item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255,255,255,0.08);
+      padding: 10px 12px;
+      border-radius: 10px;
+      border-left: 5px solid #4caf50;
+      animation: slideIn 0.3s ease;
+    }
+    .item.skip { border-left-color: #ff1744; background: rgba(255, 23, 68, 0.18); }
+    .item.vip { border-left-color: #ffd600; background: rgba(255, 214, 0, 0.15); }
+    .info { display: flex; flex-direction: column; gap: 2px; max-width: 240px; }
+    .nama { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pesan { font-size: 12px; color: #cfd8dc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .badge {
+      font-size: 11px;
+      font-weight: 800;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #4caf50;
+      color: #000;
+      text-transform: uppercase;
+    }
+    .item.skip .badge { background: #ff1744; color: #fff; }
+    .item.vip .badge { background: #ffd600; color: #000; }
+    .empty { text-align: center; color: #90a4ae; font-size: 13px; padding: 14px 0; }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-15px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+  </style>
 </head>
 <body>
   <div class="box">
-    <h3>🔥 Antrian By One (5K / 10K VIP / 15K SKIP)</h3>
-    <ul id="list"><li>Kosong (Gas donate!)</li></ul>
+    <div class="header">🔥 ANTRIAN BY ONE 🔥</div>
+    <div class="list" id="list">
+      <div class="empty">Belum ada yang antri...</div>
+    </div>
   </div>
 
-  <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
-    const list = document.getElementById('list');
+    const listEl = document.getElementById('list');
 
-    socket.on('updateQueue', (queue) => {
-      if (queue.length === 0) {
-        list.innerHTML = '<li style="color:#888;">Kosong (Gas donate!)</li>';
+    socket.on('update_antrian', (data) => {
+      if (!data || data.length === 0) {
+        listEl.innerHTML = '<div class="empty">Belum ada yang antri...</div>';
         return;
       }
-      list.innerHTML = queue.map((q, i) => `
-        <li>
-          <div>
-            #${i + 1} ${q.name} <span class="badge ${q.tier.split(' ')[0]}">${q.tier}</span>
-            <span class="note">${q.note}</span>
+
+      listEl.innerHTML = data.map((item, idx) => {
+        const cls = item.tier === 'Skip All' ? 'skip' : (item.tier === 'VIP' ? 'vip' : '');
+        return `
+          <div class="item ${cls}">
+            <div class="info">
+              <div class="nama">#${idx + 1} ${escapeHtml(item.nama)}</div>
+              <div class="pesan">${escapeHtml(item.pesan)}</div>
+            </div>
+            <div class="badge">${escapeHtml(item.tier)}</div>
           </div>
-          <span>Rp${q.amount.toLocaleString('id-ID')}</span>
-        </li>
-      `).join('');
+        `;
+      }).join('');
     });
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
+    }
   </script>
 </body>
 </html>
