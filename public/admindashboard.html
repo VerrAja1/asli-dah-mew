@@ -1,53 +1,82 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
-  <title>Admin Antrian FF</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Antrian By One</title>
+  <script src="/socket.io/socket.io.js"></script>
   <style>
-    body { font-family: sans-serif; background: #121212; color: #fff; padding: 20px; max-width: 550px; margin: auto; }
-    .item { display: flex; justify-content: space-between; align-items: center; background: #1e1e1e; padding: 10px; margin-bottom: 8px; border-radius: 6px; }
-    button { background: #e53935; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-    button.add { background: #43a047; }
-    input, select { padding: 8px; border-radius: 4px; border: none; margin-right: 5px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+    body { background: #12141d; color: #fff; padding: 20px; max-width: 600px; margin: 0 auto; }
+    .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    h1 { font-size: 20px; color: #ffb74d; }
+    .btn-reset {
+      background: #e53935; color: #fff; border: none; padding: 8px 14px;
+      border-radius: 8px; font-weight: 700; cursor: pointer;
+    }
+    .list { display: flex; flex-direction: column; gap: 10px; }
+    .card {
+      background: #1e2230; padding: 14px; border-radius: 10px;
+      display: flex; justify-content: space-between; align-items: center;
+      border-left: 5px solid #4caf50;
+    }
+    .card.skip { border-left-color: #ff1744; }
+    .card.vip { border-left-color: #ffd600; }
+    .meta { font-size: 12px; color: #90a4ae; margin-top: 4px; }
+    .btn-done {
+      background: #00c853; color: #000; border: none; padding: 8px 14px;
+      border-radius: 8px; font-weight: 800; cursor: pointer;
+    }
+    .empty { text-align: center; color: #78909c; margin-top: 40px; }
   </style>
 </head>
 <body>
-  <h2>🎮 Kontrol Antrian By One</h2>
-  <div style="margin-bottom: 15px; display: flex; gap: 5px;">
-    <input id="mName" placeholder="Nama / Nick FF">
-    <input id="mNote" placeholder="ID / Catatan">
-    <select id="mTier">
-      <option value="REGULER">Reguler (5k)</option>
-      <option value="VIP">VIP (10k)</option>
-      <option value="SKIP ALL">Skip All (15k)</option>
-    </select>
-    <button class="add" onclick="addManual()">+ Tambah</button>
+  <div class="top">
+    <h1>🎮 Panel Admin Antrian</h1>
+    <button class="btn-reset" onclick="resetAntrian()">Reset Semua</button>
   </div>
-  <div id="adminList"></div>
+  <div class="list" id="list">
+    <div class="empty">Antrian kosong</div>
+  </div>
 
-  <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
-    socket.on('updateQueue', (queue) => {
-      document.getElementById('adminList').innerHTML = queue.map((q, i) => `
-        <div class="item">
-          <div>
-            <strong>#${i+1} [${q.tier}] ${q.name}</strong> (Rp${q.amount.toLocaleString('id-ID')})<br>
-            <small style="color:#aaa">${q.note}</small>
+    const listEl = document.getElementById('list');
+
+    socket.on('update_antrian', (data) => {
+      if (!data || data.length === 0) {
+        listEl.innerHTML = '<div class="empty">Antrian kosong</div>';
+        return;
+      }
+
+      listEl.innerHTML = data.map((item, idx) => {
+        const cls = item.tier === 'Skip All' ? 'skip' : (item.tier === 'VIP' ? 'vip' : '');
+        return `
+          <div class="card ${cls}">
+            <div>
+              <strong>#${idx + 1} ${escapeHtml(item.nama)}</strong> [${escapeHtml(item.tier)}]
+              <div class="meta">Rp ${Number(item.nominal).toLocaleString('id-ID')} • ${escapeHtml(item.pesan)}</div>
+            </div>
+            <button class="btn-done" onclick="hapus(${item.id})">Selesai</button>
           </div>
-          <button onclick="done(${q.id})">Selesai</button>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     });
 
-    function done(id) { socket.emit('removeQueue', id); }
-    function addManual() {
-      const name = document.getElementById('mName').value;
-      const note = document.getElementById('mNote').value;
-      const tier = document.getElementById('mTier').value;
-      if(!name) return;
-      socket.emit('addManual', { name, amount: 0, note: note || '-', tier });
-      document.getElementById('mName').value = '';
-      document.getElementById('mNote').value = '';
+    function hapus(id) {
+      socket.emit('hapus_antrian', id);
+    }
+
+    function resetAntrian() {
+      if (confirm('Yakin hapus semua antrian?')) {
+        socket.emit('reset_antrian');
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
     }
   </script>
 </body>
