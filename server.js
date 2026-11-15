@@ -81,6 +81,7 @@ io.on('connection', (socket) => {
     io.emit('updateQueue', queue);
   });
 });
+app.get('/', (req, res) => res.redirect('/overlay.html'));
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server jalan di port ${PORT}`));
+server.listen(PORT, '0.0.0.0', () => console.log(`Server jalan di port ${PORT}`));
