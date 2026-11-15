@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { margin: 0; padding: 15px; font-family: 'Segoe UI', sans-serif; background: transparent; color: white; }
+  .box {
+    background: rgba(15, 15, 20, 0.88);
+    border-left: 5px solid #ff9800;
+    border-radius: 8px;
+    padding: 12px 16px;
+    width: 330px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+  }
+  h3 { margin: 0 0 10px 0; font-size: 15px; color: #ff9800; text-transform: uppercase; letter-spacing: 1px; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li {
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  li:first-child { color: #4caf50; font-weight: bold; }
+  li:last-child { border-bottom: none; }
+  .note { font-size: 11px; color: #bbb; display: block; margin-top: 2px; }
+  .badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 5px; color: #fff; }
+  .SKIP { background: #e53935; box-shadow: 0 0 8px rgba(229,57,53,0.7); }
+  .VIP { background: #f59e0b; color: #000; }
+  .REGULER { background: #3b82f6; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <h3>🔥 Antrian By One (5K / 10K VIP / 15K SKIP)</h3>
+    <ul id="list"><li>Kosong (Gas donate!)</li></ul>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const list = document.getElementById('list');
+
+    socket.on('updateQueue', (queue) => {
+      if (queue.length === 0) {
+        list.innerHTML = '<li style="color:#888;">Kosong (Gas donate!)</li>';
+        return;
+      }
+      list.innerHTML = queue.map((q, i) => `
+        <li>
+          <div>
+            #${i + 1} ${q.name} <span class="badge ${q.tier.split(' ')[0]}">${q.tier}</span>
+            <span class="note">${q.note}</span>
+          </div>
+          <span>Rp${q.amount.toLocaleString('id-ID')}</span>
+        </li>
+      `).join('');
+    });
+  </script>
+</body>
+</html>
