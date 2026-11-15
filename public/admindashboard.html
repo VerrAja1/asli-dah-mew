@@ -8,11 +8,24 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
     body { background: #12141d; color: #fff; padding: 20px; max-width: 600px; margin: 0 auto; }
-    .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
     h1 { font-size: 20px; color: #ffb74d; }
     .btn-reset {
       background: #e53935; color: #fff; border: none; padding: 8px 14px;
       border-radius: 8px; font-weight: 700; cursor: pointer;
+    }
+    .form-box {
+      background: #1e2230; padding: 14px; border-radius: 10px;
+      display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;
+    }
+    .row { display: flex; gap: 8px; }
+    input, select {
+      background: #12141d; color: #fff; border: 1px solid #32384d;
+      padding: 10px; border-radius: 8px; font-size: 14px; width: 100%;
+    }
+    .btn-add {
+      background: #ff9800; color: #000; border: none; padding: 10px;
+      border-radius: 8px; font-weight: 800; cursor: pointer; font-size: 14px;
     }
     .list { display: flex; flex-direction: column; gap: 10px; }
     .card {
@@ -27,7 +40,7 @@
       background: #00c853; color: #000; border: none; padding: 8px 14px;
       border-radius: 8px; font-weight: 800; cursor: pointer;
     }
-    .empty { text-align: center; color: #78909c; margin-top: 40px; }
+    .empty { text-align: center; color: #78909c; margin-top: 30px; }
   </style>
 </head>
 <body>
@@ -35,6 +48,20 @@
     <h1>🎮 Panel Admin Antrian</h1>
     <button class="btn-reset" onclick="resetAntrian()">Reset Semua</button>
   </div>
+
+  <form class="form-box" onsubmit="tambahManual(event)">
+    <div class="row">
+      <input type="text" id="nama" placeholder="Nickname / Nama" required>
+      <select id="nominal">
+        <option value="5000">Reguler (5k)</option>
+        <option value="10000">VIP (10k)</option>
+        <option value="15000">Skip All (15k)</option>
+      </select>
+    </div>
+    <input type="text" id="pesan" placeholder="ID FF / Pesan (opsional)">
+    <button type="submit" class="btn-add">+ Tambah ke Antrian</button>
+  </form>
+
   <div class="list" id="list">
     <div class="empty">Antrian kosong</div>
   </div>
@@ -62,6 +89,18 @@
         `;
       }).join('');
     });
+
+    function tambahManual(e) {
+      e.preventDefault();
+      const nama = document.getElementById('nama').value.trim();
+      const nominal = Number(document.getElementById('nominal').value);
+      const pesan = document.getElementById('pesan').value.trim() || '-';
+      if (!nama) return;
+
+      socket.emit('tambah_manual', { nama, nominal, pesan });
+      document.getElementById('nama').value = '';
+      document.getElementById('pesan').value = '';
+    }
 
     function hapus(id) {
       socket.emit('hapus_antrian', id);
