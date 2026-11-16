@@ -80,7 +80,7 @@
   <script>
     const socket = io();
     const listEl = document.getElementById('list');
-    const MAX_TAMPIL = 5; // Maksimal tampil urutan 1 - 5
+    const MAX_TAMPIL = 3; // Maksimal tampil urutan 1 - 5
 
     socket.on('update_antrian', (data) => {
       if (!data || data.length === 0) {
