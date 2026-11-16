@@ -55,6 +55,14 @@
     .item.skip .badge { background: #ff1744; color: #fff; }
     .item.vip .badge { background: #ffd600; color: #000; }
     .empty { text-align: center; color: #90a4ae; font-size: 13px; padding: 14px 0; }
+    .more {
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #ffb74d;
+      margin-top: 4px;
+      opacity: 0.9;
+    }
     @keyframes slideIn {
       from { opacity: 0; transform: translateX(-15px); }
       to { opacity: 1; transform: translateX(0); }
@@ -72,6 +80,7 @@
   <script>
     const socket = io();
     const listEl = document.getElementById('list');
+    const MAX_TAMPIL = 5; // Maksimal tampil urutan 1 - 5
 
     socket.on('update_antrian', (data) => {
       if (!data || data.length === 0) {
@@ -79,7 +88,10 @@
         return;
       }
 
-      listEl.innerHTML = data.map((item, idx) => {
+      const visibleItems = data.slice(0, MAX_TAMPIL);
+      const sisaAntrian = data.length - MAX_TAMPIL;
+
+      let html = visibleItems.map((item, idx) => {
         const cls = item.tier === 'Skip All' ? 'skip' : (item.tier === 'VIP' ? 'vip' : '');
         return `
           <div class="item ${cls}">
@@ -91,6 +103,13 @@
           </div>
         `;
       }).join('');
+
+      // Info tambahan jika ada antrian ke-6 dst yang di-hide
+      if (sisaAntrian > 0) {
+        html += `<div class="more">+${sisaAntrian} antrian lainnya menunggu...</div>`;
+      }
+
+      listEl.innerHTML = html;
     });
 
     function escapeHtml(str) {
